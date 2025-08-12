@@ -1,0 +1,47 @@
+@page "/"
+@rendermode InteractiveServer // Add this line
+@inject NavigationManager Navigation
+
+<PageTitle>利用規約</PageTitle>
+
+<div class="terms-container">
+    <h1>利用規約</h1>
+
+    <div class="terms-content">
+        <p>本システムは、ユーザーがWebブラウザ上で画像を選択し、フレームを装飾として付与し、クラウド経由で印刷指示を送信するWebアプリケーションです。</p>
+        <p>利用者はスマートフォンやPCから簡単に画像を印刷可能です。</p>
+        <p>利用規約同意 → 画像選択 → フレーム選択 → プレビュー＆印刷というシンプルな操作ステップでご利用いただけます。</p>
+        <p>最終的な印刷は、バックエンドAPIを介してクラウド印刷処理を実行します。</p>
+        <p>本サービスのご利用には、以下の事項に同意いただく必要があります。</p>
+        <ul>
+            <li>画像形式はJPG / PNG のみ対応しています。</li>
+            <li>最大画像サイズは10MBです。</li>
+            <li>常時インターネット接続が必要です（オフライン非対応）。</li>
+            <li>最新の Chrome、Edge、Safari ブラウザを推奨します（IEは非対応）。</li>
+            <li>モバイル端末の場合、カメラでの写真撮影も可能です。</li>
+            <li>アップロードされた画像は、印刷処理のために一時的にサーバーに保存される場合があります。</li>
+            <li>本サービスの利用により生じた損害について、当社は一切の責任を負いません。</li>
+            <li>本規約は予告なく変更される場合があります。</li>
+        </ul>
+        <p>上記利用規約に同意しますか？</p>
+    </div>
+
+    <div class="form-check mt-3">
+        <input type="checkbox" class="form-check-input" id="agreeCheckbox" @bind="agreedToTerms">
+        <label class="form-check-label" for="agreeCheckbox">利用規約に同意する</label>
+    </div>
+
+    <button class="btn btn-primary mt-3" @onclick="GoToNextPage" disabled="@(!agreedToTerms)">次へ</button>
+</div>
+
+@code {
+    private bool agreedToTerms = false;
+
+    private void GoToNextPage()
+    {
+        if (agreedToTerms)
+        {
+            Navigation.NavigateTo("/select-file");
+        }
+    }
+}

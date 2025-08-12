@@ -1,0 +1,106 @@
+@page "/select-file"
+@rendermode InteractiveServer // Add this line
+@using CloudPrintApp.Services // Add this line
+@inject NavigationManager Navigation
+@inject ImageProcessingService ImageService // Inject the service
+
+<PageTitle>ファイル選択</PageTitle>
+
+<div class="container">
+    <h1>ファイル選択</h1>
+
+    <div class="mb-3">
+        <label for="imageUpload" class="form-label">画像をアップロードしてください (JPG/PNG, 最大10MB)</label>
+        <InputFile id="imageUpload" OnChange="HandleFileSelection" accept="image/jpeg, image/png" />
+    </div>
+
+    @if (!string.IsNullOrEmpty(imageDataUrl))
+    {
+        <div class="image-preview mb-3">
+            <h3>プレビュー:</h3>
+            <img src="@imageDataUrl" class="img-fluid" alt="Image Preview" style="max-width: 300px; max-height: 300px;" />
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    <button class="btn btn-primary" @onclick="GoToNextPage" disabled="@(string.IsNullOrEmpty(imageDataUrl))">次へ</button>
+</div>
+
+@code {
+    private string imageDataUrl;
+    private string errorMessage;
+    private IBrowserFile selectedFile;
+
+    private async Task HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        errorMessage = string.Empty;
+        imageDataUrl = string.Empty;
+        selectedFile = null;
+
+        var file = e.File;
+
+        if (file == null)
+        {
+            return;
+        }
+
+        // Validate file type
+        if (file.ContentType != "image/jpeg" && file.ContentType != "image/png")
+        {
+            errorMessage = "対応していないファイル形式です。JPGまたはPNGを選択してください。";
+            return;
+        }
+
+        // Validate file size (10MB limit)
+        if (file.Size > 10 * 1024 * 1024) // 10 MB
+        {
+            errorMessage = "画像サイズが10MBを超えています。";
+            return;
+        }
+
+        selectedFile = file;
+
+        // Read file as base64 for preview
+        using (var stream = file.OpenReadStream())
+        {
+            using (var memoryStream = new MemoryStream())
+            {
+                await stream.CopyToAsync(memoryStream);
+                imageDataUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(memoryStream.ToArray())}";
+                ImageService.SetImageDataUrl(imageDataUrl); // Store in service
+            }
+        }
+        StateHasChanged(); // Force re-render to update button state
+    }
+
+    @inject IJSRuntime JSRuntime // Add this line
+
+    private void GoToNextPage()
+    {
+        Console.WriteLine("GoToNextPage called.");
+        // JSRuntime.InvokeVoidAsync("alert", "Button clicked!"); // Call JavaScript alert
+        if (!string.IsNullOrEmpty(imageDataUrl))
+        {
+            try
+            {
+                Navigation.NavigateTo("/select-frame");
+                Console.WriteLine("Navigating to /select-frame.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Navigation error: {ex.Message}");
+                errorMessage = $"ナビゲーションエラー: {ex.Message}";
+            }
+        }
+        else
+        {
+            Console.WriteLine("imageDataUrl is empty, not navigating.");
+        }
+    }
+}

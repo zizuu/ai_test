@@ -1,0 +1,128 @@
+@page "/select-frame"
+@rendermode InteractiveServer // Add this line
+@using CloudPrintApp.Services // Add this line
+@using System.IO; // Add this line for Path and Directory
+@inject NavigationManager Navigation
+@inject ImageProcessingService ImageService
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env // Inject IWebHostEnvironment
+
+<PageTitle>フレーム選択</PageTitle>
+
+<div class="container">
+    <h1>フレーム選択</h1>
+
+    @if (string.IsNullOrEmpty(ImageService.ImageDataUrl))
+    {
+        <div class="alert alert-warning" role="alert">
+            画像が選択されていません。ファイル選択画面に戻ってください。
+        </div>
+        <button class="btn btn-secondary" @onclick="GoToFileSelection">ファイル選択に戻る</button>
+    }
+    else
+    {
+        <h3>合成画像プレビュー:</h3>
+        <div class="image-with-frame-preview mb-3" style="position: relative; display: inline-block;">
+            <img src="@ImageService.ImageDataUrl" class="img-fluid" alt="Uploaded Image" style="max-width: 300px; max-height: 300px;" />
+            @if (!string.IsNullOrEmpty(selectedFrameId))
+            {
+                var selectedFrame = availableFrames.FirstOrDefault(f => f.Id == selectedFrameId);
+                if (selectedFrame != null && !string.IsNullOrEmpty(selectedFrame.ImageUrl))
+                {
+                    <img src="@selectedFrame.ImageUrl" class="frame-overlay-image" alt="Selected Frame" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;" />
+                }
+            }
+        </div>
+
+        <h3>フレームを選択してください:</h3>
+        <div class="d-flex flex-wrap mb-3">
+            @foreach (var frame in availableFrames)
+            {
+                <div class="frame-option card m-2 @(selectedFrameId == frame.Id ? "border-primary" : "")"
+                     @onclick="(() => OnSelectFrame(frame.Id))"
+                     style="width: 120px; height: 120px; cursor: pointer; border: 2px solid lightgray; overflow: hidden;">
+                    <div class="card-body d-flex align-items-center justify-content-center p-1">
+                        <img src="@frame.ImageUrl" class="img-fluid" alt="@frame.Name Frame" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                    </div>
+                    <div class="card-footer text-center p-1">
+                        <small>@frame.Name</small>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <button class="btn btn-primary" @onclick="GoToNextPage" disabled="@(string.IsNullOrEmpty(selectedFrameId))">次へ</button>
+    }
+</div>
+
+@code {
+    private string selectedFrameId;
+
+    private List<Frame> availableFrames = new List<Frame>();
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("SelectFrame.razor OnInitialized called.");
+        if (string.IsNullOrEmpty(ImageService.ImageDataUrl))
+        {
+            Console.WriteLine("SelectFrame.razor: ImageDataUrl is empty, redirecting to /select-file.");
+            // If no image is selected, redirect back to file selection
+            Navigation.NavigateTo("/select-file");
+            return; // Stop further execution if redirecting
+        }
+
+        // Dynamically load frame images from wwwroot/frames
+        var webRootPath = Env.WebRootPath; // Assuming Env is injected or available
+        var framesPath = Path.Combine(webRootPath, "frames");
+
+        if (Directory.Exists(framesPath))
+        {
+            var pngFiles = Directory.GetFiles(framesPath, "*.png");
+            int frameCounter = 1;
+            foreach (var filePath in pngFiles)
+            {
+                var fileName = Path.GetFileName(filePath);
+                availableFrames.Add(new Frame
+                {
+                    Id = $"frame_{frameCounter:000}",
+                    Name = Path.GetFileNameWithoutExtension(fileName),
+                    ImageUrl = $"/frames/{fileName}"
+                });
+                frameCounter++;
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Frames directory not found: {framesPath}");
+            // Optionally, set an error message for the user
+        }
+
+        // Restore selected frame if already set in service
+        selectedFrameId = ImageService.SelectedFrameId;
+    }
+
+    private void OnSelectFrame(string frameId)
+    {
+        selectedFrameId = frameId;
+        ImageService.SetSelectedFrameId(frameId); // Store in service
+    }
+
+    private void GoToNextPage()
+    {
+        if (!string.IsNullOrEmpty(selectedFrameId))
+        {
+            Navigation.NavigateTo("/preview");
+        }
+    }
+
+    private void GoToFileSelection()
+    {
+        Navigation.NavigateTo("/select-file");
+    }
+
+    private class Frame
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string ImageUrl { get; set; } // New property for image URL
+    }
+}

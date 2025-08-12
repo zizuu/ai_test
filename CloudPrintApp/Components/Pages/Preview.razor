@@ -1,0 +1,121 @@
+@page "/preview"
+@rendermode InteractiveServer // Add this line
+@using CloudPrintApp.Services // Add this line
+@inject NavigationManager Navigation
+@inject ImageProcessingService ImageService
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env // Inject IWebHostEnvironment
+@using System.IO; // Add this for Path and Directory
+
+<PageTitle>プレビュー</PageTitle>
+
+<div class="container">
+    <h1>プレビュー</h1>
+
+    @if (string.IsNullOrEmpty(ImageService.ImageDataUrl) || string.IsNullOrEmpty(ImageService.SelectedFrameId))
+    {
+        <div class="alert alert-warning" role="alert">
+            画像またはフレームが選択されていません。前の画面に戻ってください。
+        </div>
+        <button class="btn btn-secondary" @onclick="GoToPreviousPage">前の画面に戻る</button>
+    }
+    else
+    {
+        <h3>合成画像プレビュー:</h3>
+        <div class="image-with-frame-preview mb-3" style="position: relative; display: inline-block;">
+            <img src="@ImageService.ImageDataUrl" class="img-fluid" alt="Composed Image" style="max-width: 300px; max-height: 300px;" />
+            @{
+                var selectedFrame = availableFrames.FirstOrDefault(f => f.Id == ImageService.SelectedFrameId);
+                if (selectedFrame != null && !string.IsNullOrEmpty(selectedFrame.ImageUrl))
+                {
+                    <img src="@selectedFrame.ImageUrl" class="frame-overlay-image" alt="Selected Frame" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;" />
+                }
+            }
+        </div>
+
+        <button class="btn btn-success btn-lg" @onclick="PrintImage">印刷する</button>
+
+        @if (!string.IsNullOrEmpty(apiResponseMessage))
+        {
+            <div class="mt-3 alert @(apiSuccess ? "alert-success" : "alert-danger")" role="alert">
+                @apiResponseMessage
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private string apiResponseMessage;
+    private bool apiSuccess;
+
+    private List<Frame> availableFrames = new List<Frame>();
+
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrEmpty(ImageService.ImageDataUrl) || string.IsNullOrEmpty(ImageService.SelectedFrameId))
+        {
+            // If image or frame is not selected, redirect back
+            Navigation.NavigateTo("/select-file"); // Or to a more appropriate page
+            return; // Stop further execution if redirecting
+        }
+
+        // Dynamically load frame images from wwwroot/frames
+        var webRootPath = Env.WebRootPath;
+        var framesPath = Path.Combine(webRootPath, "frames");
+
+        if (Directory.Exists(framesPath))
+        {
+            var pngFiles = Directory.GetFiles(framesPath, "*.png");
+            int frameCounter = 1;
+            foreach (var filePath in pngFiles)
+            {
+                var fileName = Path.GetFileName(filePath);
+                availableFrames.Add(new Frame
+                {
+                    Id = $"frame_{frameCounter:000}",
+                    Name = Path.GetFileNameWithoutExtension(fileName),
+                    ImageUrl = $"/frames/{fileName}"
+                });
+                frameCounter++;
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Frames directory not found: {framesPath}");
+            // Optionally, set an error message for the user
+        }
+    }
+
+    private async Task PrintImage()
+    {
+        apiResponseMessage = string.Empty;
+        apiSuccess = false;
+
+        // Simulate API call
+        await Task.Delay(1000); // Simulate network delay
+
+        // Simulate success or failure
+        Random rand = new Random();
+        if (rand.Next(0, 2) == 0) // 50% chance of success
+        {
+            apiSuccess = true;
+            apiResponseMessage = "印刷指示を送信しました。";
+        }
+        else
+        {
+            apiSuccess = false;
+            apiResponseMessage = "印刷に失敗しました。再度お試しください。";
+        }
+    }
+
+    private void GoToPreviousPage()
+    {
+        Navigation.NavigateTo("/select-frame");
+    }
+
+    private class Frame // Duplicated from SelectFrame.razor for simplicity in this prototype
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string ImageUrl { get; set; }
+    }
+}
